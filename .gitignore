@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+.idea/
+
+# 抓包原始数据体积大，不纳入版本库
+data/raw/*
+!data/raw/.gitkeep
+*.pcap
+*.pcapng
+
+# 运行产物
+.pytest_cache/
+*.log
+.DS_Store
+Thumbs.db

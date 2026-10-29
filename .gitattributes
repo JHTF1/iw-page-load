@@ -1,0 +1,10 @@
+* text=auto
+
+# WSL 与 CI 里执行的脚本必须是 LF
+*.sh text eol=lf
+*.py text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+*.png binary
+*.pcap binary

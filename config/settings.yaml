@@ -1,0 +1,38 @@
+# 全局配置：所有实验参数集中在这里，代码中禁止写死
+
+project:
+  name: iw-page-load
+  timezone: Asia/Shanghai
+
+sites:
+  file: config/sites.csv
+
+capture:
+  iface: auto             # auto 表示交给 scapy 自动选网卡
+  snaplen: 65535
+  bpf_filter: tcp
+  duration_s: 8           # 单次抓包时长（秒）
+  repeats: 2              # 每站重复轮数
+  curl_timeout_s: 10
+
+measure:
+  chrome_binary: auto     # auto 表示自动查找本机 Chrome
+  remote_debug_port: 9222
+  repeats: 5
+  cache_mode: cold
+  disable_quic: true
+  navigation_timeout_ms: 30000
+
+lab:
+  host: 127.0.0.1
+  port: 8080
+  rtt_ms: 60              # tc netem 构造的往返时延
+  initcwnd_values: [2, 4, 10, 20]
+  object_count: 20
+  object_size_kb: 60
+
+analysis:
+  alpha: 0.05
+  outlier_method: iqr
+  figure_dpi: 300
+  figure_formats: [png, svg]

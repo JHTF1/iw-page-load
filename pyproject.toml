@@ -1,0 +1,10 @@
+[project]
+name = "iw-page-load"
+version = "0.1.0"
+description = "服务器初始拥塞窗口与网站加载性能测量"
+requires-python = ">=3.13"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
