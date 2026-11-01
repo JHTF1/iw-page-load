@@ -2,7 +2,8 @@
 
 算法：
 1. 定位三次握手：SYN → SYN-ACK → 客户端确认 SYN-ACK 的 ACK
-2. 统计服务器在该 ACK 之前发出的载荷字节，按序号区间并集去重
+2. 统计服务器在客户端首次确认其数据（ack > 服务器 ISN + 1）之前发出的载荷，
+   按序号区间并集去重
 3. MSS 取客户端 SYN 的 MSS 选项；缺失时按协议默认值回退并降低置信度
 """
 
@@ -103,8 +104,7 @@ def _unique_connections(handshakes: list[_Handshake]) -> list[_Handshake]:
     return unique
 
 
-def _first_ack_index(packets: list[Any], handshake: _Handshake) -> int | None:
-    expected_ack = (handshake.server_isn + 1) % SEQ_MOD
+def _first_data_ack_index(packets: list[Any], handshake: _Handshake) -> int | None:
     client_key = (handshake.client_ip, handshake.server_ip, handshake.client_port, handshake.server_port)
     for index in range(handshake.synack_index + 1, len(packets)):
         packet = packets[index]
@@ -114,7 +114,10 @@ def _first_ack_index(packets: list[Any], handshake: _Handshake) -> int | None:
         if endpoints is None or endpoints != client_key:
             continue
         tcp = packet[TCP]
-        if tcp.flags.A and int(tcp.ack) % SEQ_MOD == expected_ack:
+        if not tcp.flags.A:
+            continue
+        acknowledged = (int(tcp.ack) - handshake.server_isn - 1) % SEQ_MOD
+        if 0 < acknowledged < SEQ_HALF:
             return index
     return None
 
@@ -153,7 +156,7 @@ def _analyze_flight(packets: list[Any], server_ip: str | None = None) -> dict[st
         raise ValueError("未找到完整三次握手（SYN → SYN-ACK → ACK）")
 
     handshake = candidates[0]
-    ack_index = _first_ack_index(tcp_packets_only, handshake)
+    ack_index = _first_data_ack_index(tcp_packets_only, handshake)
     stop_index = ack_index if ack_index is not None else len(tcp_packets_only)
     segments = _payload_segments(tcp_packets_only, handshake, stop_index)
     if not segments:
@@ -188,7 +191,7 @@ def _analyze_flight(packets: list[Any], server_ip: str | None = None) -> dict[st
         if confidence == "high":
             confidence = "medium"
     if ack_index is None:
-        notes.append("未捕获到首个 ACK，按抓包结束截断")
+        notes.append("未捕获到确认服务器数据的 ACK，按抓包结束截断")
         if confidence == "high":
             confidence = "medium"
     if len(candidates) > 1:
