@@ -1,0 +1,2 @@
+site,url,server_ip,ip_version,timestamp_utc,initcwnd_bytes,mss_bytes,initcwnd_mss,segment_count,retrans_count,method,confidence,notes
+baidu,https://www.baidu.com/,39.156.70.46,4,2026-11-01T13:21:44Z,5206,1460,3.57,5,1,passive,medium,首窗口内检测到 1 个重传段，已按序号去重
