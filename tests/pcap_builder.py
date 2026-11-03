@@ -39,18 +39,20 @@ def handshake_packets(
     client_isn: int = 1000,
     server_isn: int = 5000,
     mss: int | None = 1460,
+    server_mss: int | None = None,
     v6: bool = False,
     client_port: int = 40000,
     server_port: int = 443,
     ts: float = 1000.0,
 ) -> tuple[object, object, object]:
+    synack_mss = mss if server_mss is None else server_mss
     syn = make_tcp_packet(
         client_ip, server_ip, client_port, server_port,
         seq=client_isn, flags="S", mss=mss, v6=v6, ts=ts,
     )
     synack = make_tcp_packet(
         server_ip, client_ip, server_port, client_port,
-        seq=server_isn, ack=client_isn + 1, flags="SA", mss=mss, v6=v6, ts=ts + 0.001,
+        seq=server_isn, ack=client_isn + 1, flags="SA", mss=synack_mss, v6=v6, ts=ts + 0.001,
     )
     ack = make_tcp_packet(
         client_ip, server_ip, client_port, server_port,
