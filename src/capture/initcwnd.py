@@ -4,7 +4,8 @@
 1. 定位三次握手：SYN → SYN-ACK → 客户端确认 SYN-ACK 的 ACK
 2. 统计服务器在客户端首次确认其数据（ack > 服务器 ISN + 1）之前发出的载荷，
    按序号区间并集去重
-3. MSS 取客户端 SYN 的 MSS 选项；缺失时按协议默认值回退并降低置信度
+3. MSS 取客户端 SYN 与服务器 SYN-ACK 的较小值；非正 MSS 视为无效，
+   缺失时按另一侧或协议默认值回退并降低置信度
 """
 
 from __future__ import annotations
@@ -32,7 +33,8 @@ class _Handshake:
     server_port: int
     client_isn: int
     server_isn: int
-    mss_bytes: int | None
+    client_mss_bytes: int | None
+    server_mss_bytes: int | None
     synack_index: int
 
 
@@ -85,7 +87,8 @@ def _find_handshakes(packets: list[Any], server_ip: str | None = None) -> list[_
                 server_port=sport,
                 client_isn=client_isn,
                 server_isn=int(tcp.seq) % SEQ_MOD,
-                mss_bytes=_mss_option(syn_packet),
+                client_mss_bytes=_mss_option(syn_packet),
+                server_mss_bytes=_mss_option(packet),
                 synack_index=index,
             )
         )
@@ -102,6 +105,42 @@ def _unique_connections(handshakes: list[_Handshake]) -> list[_Handshake]:
         seen.add(key)
         unique.append(handshake)
     return unique
+
+
+def _effective_mss(handshake: _Handshake, ip_version: str) -> tuple[int, str, str]:
+    """服务器发送方向的有效 MSS：取两端较小值；非正 MSS 视为无效。"""
+    raw_client = handshake.client_mss_bytes
+    raw_server = handshake.server_mss_bytes
+    client = raw_client if raw_client is not None and raw_client > 0 else None
+    server = raw_server if raw_server is not None and raw_server > 0 else None
+
+    notes: list[str] = []
+    if raw_client is not None and client is None:
+        notes.append(f"客户端 SYN MSS 非法（{raw_client}），已忽略")
+    if raw_server is not None and server is None:
+        notes.append(f"服务器 SYN-ACK MSS 非法（{raw_server}），已忽略")
+    invalid = bool(notes)
+
+    if client is not None and server is not None:
+        mss = min(client, server)
+        if client != server:
+            notes.append(f"客户端 SYN MSS={client}，服务器 SYN-ACK MSS={server}，取较小值 {mss}")
+        return mss, "low" if invalid else "high", "；".join(notes)
+    if client is not None:
+        if raw_server is None:
+            notes.append("服务器 SYN-ACK 未携带 MSS 选项，按客户端 SYN MSS 计算")
+        else:
+            notes.append("按客户端 SYN MSS 计算")
+        return client, "low" if invalid else "medium", "；".join(notes)
+    if server is not None:
+        if raw_client is None:
+            notes.append("客户端 SYN 未携带 MSS 选项，按服务器 SYN-ACK MSS 计算")
+        else:
+            notes.append("按服务器 SYN-ACK MSS 计算")
+        return server, "low" if invalid else "medium", "；".join(notes)
+    mss = IPV6_DEFAULT_MSS if ip_version == "6" else IPV4_DEFAULT_MSS
+    notes.append(f"两端均无有效 MSS 选项，按协议默认值 {mss} 字节回退")
+    return mss, "low", "；".join(notes)
 
 
 def _first_data_ack_index(packets: list[Any], handshake: _Handshake) -> int | None:
@@ -176,15 +215,11 @@ def _analyze_flight(packets: list[Any], server_ip: str | None = None) -> dict[st
 
     initcwnd_bytes = _covered_bytes(ranges)
     ip_version = str(ipaddress.ip_address(handshake.server_ip).version)
+    mss_bytes, mss_confidence, mss_note = _effective_mss(handshake, ip_version)
     notes: list[str] = []
-    confidence = "high"
-
-    if handshake.mss_bytes is None:
-        mss_bytes = IPV6_DEFAULT_MSS if ip_version == "6" else IPV4_DEFAULT_MSS
-        confidence = "low"
-        notes.append(f"客户端 SYN 未携带 MSS 选项，按协议默认值 {mss_bytes} 字节回退")
-    else:
-        mss_bytes = handshake.mss_bytes
+    confidence = mss_confidence
+    if mss_note:
+        notes.append(mss_note)
 
     if retrans_count:
         notes.append(f"首窗口内检测到 {retrans_count} 个重传段，已按序号去重")

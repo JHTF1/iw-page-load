@@ -38,6 +38,7 @@ def _base_packets(
     client_isn=C_ISN,
     server_isn=S_ISN,
     mss=MSS,
+    server_mss="same",
     v6=False,
     client_port=40000,
     server_port=443,
@@ -45,6 +46,7 @@ def _base_packets(
 ):
     syn, synack, handshake_ack = handshake_packets(
         server, client, client_isn, server_isn, mss,
+        server_mss=server_mss,
         v6=v6, client_port=client_port, server_port=server_port, ts=ts,
     )
     client_hello = make_tcp_packet(
@@ -171,6 +173,67 @@ def test_ipv6_handshake_uses_1440_mss(tmp_path):
     assert result["initcwnd_bytes"] == 10 * 1440
     assert result["mss_bytes"] == 1440
     assert result["confidence"] == "high"
+
+
+def test_effective_mss_uses_smaller_syn_and_synack_value(tmp_path):
+    syn, synack, handshake_ack, hello = _base_packets(server_mss=1392)
+    data = server_payload_packets(
+        SERVER, CLIENT, first_seq=FIRST_SEQ, sizes=[1392] * 10, ts=1000.06
+    )
+    ack = _data_ack(ack_bytes=10 * 1392)
+
+    result = measure_initcwnd(_write(tmp_path, [syn, synack, handshake_ack, hello, *data, ack]))
+
+    assert result["mss_bytes"] == 1392
+    assert result["initcwnd_bytes"] == 10 * 1392
+    assert result["initcwnd_mss"] == 10.0
+    assert result["confidence"] == "high"
+    assert "1392" in result["notes"]
+
+
+def test_missing_server_mss_falls_back_to_client_value(tmp_path):
+    syn, synack, handshake_ack, hello = _base_packets(mss=1460, server_mss=None)
+    data = server_payload_packets(
+        SERVER, CLIENT, first_seq=FIRST_SEQ, sizes=[1460] * 10, ts=1000.06
+    )
+    ack = _data_ack(ack_bytes=10 * 1460)
+
+    result = measure_initcwnd(_write(tmp_path, [syn, synack, handshake_ack, hello, *data, ack]))
+
+    assert result["mss_bytes"] == 1460
+    assert result["initcwnd_mss"] == 10.0
+    assert result["confidence"] == "medium"
+    assert "服务器 SYN-ACK" in result["notes"]
+
+
+def test_missing_client_mss_falls_back_to_server_value(tmp_path):
+    syn, synack, handshake_ack, hello = _base_packets(mss=None, server_mss=1392)
+    data = server_payload_packets(
+        SERVER, CLIENT, first_seq=FIRST_SEQ, sizes=[1392] * 10, ts=1000.06
+    )
+    ack = _data_ack(ack_bytes=10 * 1392)
+
+    result = measure_initcwnd(_write(tmp_path, [syn, synack, handshake_ack, hello, *data, ack]))
+
+    assert result["mss_bytes"] == 1392
+    assert result["initcwnd_mss"] == 10.0
+    assert result["confidence"] == "medium"
+    assert "客户端 SYN" in result["notes"]
+
+
+def test_non_positive_server_mss_falls_back_to_client_value(tmp_path):
+    syn, synack, handshake_ack, hello = _base_packets(mss=1460, server_mss=0)
+    data = server_payload_packets(
+        SERVER, CLIENT, first_seq=FIRST_SEQ, sizes=[1460] * 10, ts=1000.06
+    )
+    ack = _data_ack(ack_bytes=10 * 1460)
+
+    result = measure_initcwnd(_write(tmp_path, [syn, synack, handshake_ack, hello, *data, ack]))
+
+    assert result["mss_bytes"] == 1460
+    assert result["initcwnd_mss"] == 10.0
+    assert result["confidence"] == "low"
+    assert "非法" in result["notes"]
 
 
 def test_data_after_first_data_ack_is_excluded(tmp_path):
