@@ -1,0 +1,10 @@
+comparison,method,statistic,p_value,p_adjusted,effect_size,n,note
+真实站点 TTFB ~ initcwnd,spearman,-0.183,0.382,,-0.183,25,结论仅限相关
+真实站点 load ~ initcwnd,spearman,-0.305,0.138,,-0.305,25,结论仅限相关
+真实站点 load ~ initcwnd（控制 transfer_bytes）,partial_spearman,-0.245,0.249,,-0.245,25,偏相关控制页面总字节混杂因素
+受控实验 lab-2 vs lab-4,mann-whitney-u,12.0,0.052,0.311,1.0,7,load 中位数 lab-2=729.55 ms，lab-4=599.3 ms
+受控实验 lab-2 vs lab-10,mann-whitney-u,16.0,0.03,0.182,1.0,8,load 中位数 lab-2=729.55 ms，lab-10=596.65 ms
+受控实验 lab-2 vs lab-20,mann-whitney-u,20.0,0.02,0.12,1.0,9,load 中位数 lab-2=729.55 ms，lab-20=467.6 ms
+受控实验 lab-4 vs lab-10,mann-whitney-u,12.0,0.052,0.311,1.0,7,load 中位数 lab-4=599.3 ms，lab-10=596.65 ms
+受控实验 lab-4 vs lab-20,mann-whitney-u,15.0,0.037,0.221,1.0,8,load 中位数 lab-4=599.3 ms，lab-20=467.6 ms
+受控实验 lab-10 vs lab-20,mann-whitney-u,20.0,0.02,0.12,1.0,9,load 中位数 lab-10=596.65 ms，lab-20=467.6 ms

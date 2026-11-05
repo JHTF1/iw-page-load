@@ -96,7 +96,10 @@ def _correlation_row(comparison: str, result: dict[str, Any], note: str = "") ->
 
 
 def _lab_stats_rows(merged: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    lab = [row for row in merged if row["group"] == "lab"]
+    lab = sorted(
+        (row for row in merged if row["group"] == "lab"),
+        key=lambda row: row["initcwnd_mss"],
+    )
     group_values = {
         row["site"]: row["load_samples"] or [row["load_ms"]]
         for row in lab

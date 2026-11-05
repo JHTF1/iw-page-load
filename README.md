@@ -21,7 +21,12 @@
 
 ## 当前状态
 
-**v0.1.0 骨架阶段。** 目录、公共模块、数据契约、配置、文档、测试和 CI 已就位；`src/capture/`、`src/measure/`、`src/analysis/` 三个模块目前只有接口桩，分别由 A、B、C 在各自分支上实现。
+**v1.0.0 答辩冻结版（2026-11-04）。** 两条实验线均已完成并冻结：
+
+- 真实站点：25 站抓包（25 条真实 + 受控校准 4 条 = 29 条 initcwnd 记录）+ 25 站 × 5 轮页面测量（142 条 pageload 记录）
+- 受控实验：lab-2/4/10/20 四组，每组 5 轮，20/20 有效
+- 分析产物：图 3～6（PNG + SVG）、表 2～4（CSV）、终稿 DOCX 与答辩 PPT
+- 测试：`pytest` 全绿
 
 ## 目录结构
 
@@ -71,13 +76,13 @@ pip install -r requirements.txt
 # 1. 环境与抓包自检（需管理员权限）
 python check_env.py
 
-# 2. 单站点抓包并测 initcwnd（A 的模块，待实现）
+# 2. 单站点抓包并测 initcwnd
 python -m src.capture --site baidu --url https://www.baidu.com/
 
-# 3. 批量测量页面加载性能（B 的模块，待实现）
+# 3. 批量测量页面加载性能
 python -m src.measure --sites config/sites.csv
 
-# 4. 合并、统计并出图（C 的模块，待实现）
+# 4. 合并、统计并出图（图 3~6 与表 2~4）
 python -m src.analysis
 
 # 5. 跑测试
